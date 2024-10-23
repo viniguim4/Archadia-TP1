@@ -72,10 +72,6 @@ public:
                 }
             }
 
-            // IMPRIMIR ALCANÇAVEIS E DISTANCIA MAXIMA
-            cout << "Centro: " << nomes_centros[i] << " - Cidades alcançáveis: " << cidades_alcançaveis 
-                 << ", Distância máxima: " << distancia_maxima << endl;
-
             // Verificar se este centro é melhor
             if (cidades_alcançaveis > max_alcançaveis ||
                 (cidades_alcançaveis == max_alcançaveis && distancia_maxima < menor_distancia_maxima)) {
@@ -87,33 +83,6 @@ public:
 
         // Retornar o nome do centro que será a capital
         return nomes_centros[melhor_centro]; // Nome da capital
-    }
-
-    void imprimir_distancias_maximas(const string& capital) {
-        int capital_index = centro_index[capital];
-        vector<int> distancias(centro_count, -1);
-        queue<int> fila;
-        fila.push(capital_index);
-        distancias[capital_index] = 0;
-
-        // BFS para calcular distâncias a partir da capital
-        while (!fila.empty()) {
-            int atual = fila.front();
-            fila.pop();
-
-            for (int vizinho : adj[atual]) {
-                if (distancias[vizinho] == -1) { // Se não visitado
-                    distancias[vizinho] = distancias[atual] + 1;
-                    fila.push(vizinho);
-                }
-            }
-        }
-
-        // Imprimir as distâncias máximas
-        cout << "Distâncias máximas a partir da capital " << capital << ":" << endl;
-        for (const auto& par : centro_index) {
-            cout << "De " << capital << " a " << par.first << ": " << distancias[par.second] << " estradas" << endl;
-        }
     }
 
     void contar_batalhoes_secundarios() {
@@ -141,9 +110,6 @@ int main() {
     // Chamar a função para encontrar e imprimir a capital
     string capital = grafo.encontrar_capital();
     cout << "A capital é: " << capital << endl;
-
-    // Imprimir as distâncias máximas a partir da capital
-    grafo.imprimir_distancias_maximas(capital);
 
     // Chame as outras funções aqui
 
