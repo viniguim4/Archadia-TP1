@@ -14,6 +14,7 @@ public:
     vector<vector<int>> adj; // Lista de adjacência
     unordered_map<string, int> centro_index; // Mapeia nomes de centros urbanos para índices
     vector<string> nomes_centros; // Armazena os nomes dos centros urbanos
+    string capital; // Nome da capital
 
     Grafo() : centro_count(0) {}
 
@@ -37,7 +38,7 @@ public:
         adj[u].push_back(v); // Apenas adiciona a direção de origem para destino
     }
 
-    string encontrar_capital() {
+    void encontrar_capital() {
         int melhor_centro = -1;
         int max_alcançaveis = -1;
         int menor_distancia_maxima = INT_MAX;
@@ -81,8 +82,8 @@ public:
             }
         }
 
-        // Retornar o nome do centro que será a capital
-        return nomes_centros[melhor_centro]; // Nome da capital
+        // nome do centro que será a capital
+        capital = nomes_centros[melhor_centro]; // Nome da capital
     }
 
     void contar_batalhoes_secundarios() {
@@ -108,8 +109,8 @@ int main() {
     }
 
     // Chamar a função para encontrar e imprimir a capital
-    string capital = grafo.encontrar_capital();
-    cout << "A capital é: " << capital << endl;
+    grafo.encontrar_capital();
+    cout << "A capital é: " << grafo.capital << endl;
 
     // Chame as outras funções aqui
 
