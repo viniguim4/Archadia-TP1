@@ -3,6 +3,7 @@
 #include <string>
 #include <queue>
 #include <unordered_map>
+#include <algorithm>
 
 #define INT_MAX 2147483647
 
@@ -15,6 +16,12 @@ public:
     unordered_map<string, int> centro_index; // Mapeia nomes de centros urbanos para índices
     vector<string> nomes_centros; // Armazena os nomes dos centros urbanos
     string capital; // Nome da capital
+
+    // para a DFS e SCC
+    vector<bool> visited; // Vetor de visitados
+    vector<vector<int>> scc_componentes; // Componentes fortemente conexas
+    vector<vector<int>> scc_adj; // Lista de adjacência das componentes fortemente conexas
+
 
     Grafo() : centro_count(0) {}
 
@@ -86,14 +93,73 @@ public:
         capital = nomes_centros[melhor_centro]; // Nome da capital
     }
 
+    void dfs_batalhao(int vertice, vector<int> &output, vector<vector<int>> &adj_ref) {
+        visited[vertice] = true;
+        for (auto vertice_visita : adj_ref[vertice])
+            if (!visited[vertice_visita])
+                dfs_batalhao(vertice_visita, output, adj_ref);
+        output.push_back(vertice);
+    }
+
     void contar_batalhoes_secundarios() {
-        // Implementar lógica para contar batalhões secundários
+        vector<int> ordenador;
+        visited.assign(centro_count, false);
+        scc_adj.clear();
+        scc_componentes.clear();
+
+        // kosaraju alg
+        for ( int i = 0; i < centro_count; i++)
+            if (!visited[i])
+                dfs_batalhao(i, ordenador, this->adj);
+
+        // Transpor o grafo
+        vector<vector<int>> transposto(centro_count);
+        for (int i = 0; i < centro_count; i++) {
+            for (auto vertice: adj[i]) {
+                transposto[vertice].push_back(i);
+            }
+        }
+
+        visited.assign(centro_count, false);
+        reverse(ordenador.begin(), ordenador.end());
+
+        vector<int> raizes(centro_count, -1);
+        // Segunda DFS
+        for (auto vertice : ordenador) {
+            if (!visited[vertice]) {
+                vector<int> componente;
+                dfs_batalhao(vertice, componente, transposto);
+                scc_componentes.push_back(componente);
+                int raiz = *min_element(componente.begin(), componente.end());
+                for (auto inner_vertice: componente)
+                    raizes[inner_vertice] = raiz;
+            }
+        }
+
+        // Construir o grafo das componentes
+        scc_adj.resize(scc_componentes.size());
+        for (int i = 0; i < centro_count; i++) {
+            for (auto vertice: adj[i]) {
+                if (raizes[i] != raizes[vertice])
+                    scc_adj[raizes[i]].push_back(raizes[vertice]);
+            }
+        }
+
+        // printar o grafo scc
+        for (int i = 0; i < scc_componentes.size(); i++) {
+            cout << "Componente " << i << ": ";
+            for (auto vertice : scc_componentes[i])
+                cout << nomes_centros[vertice] << " ";
+            cout << endl;
+        }
+
     }
 
     void verificar_patrulhamento() {
         // Implementar lógica para verificar rotas de patrulhamento
     }
 };
+
 
 int main() {
     int centros, num_estradas;
@@ -113,6 +179,6 @@ int main() {
     cout << "A capital é: " << grafo.capital << endl;
 
     // Chame as outras funções aqui
-
+    grafo.contar_batalhoes_secundarios();
     return 0;
 }
