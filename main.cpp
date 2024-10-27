@@ -4,6 +4,7 @@
 #include <queue>
 #include <unordered_map>
 #include <algorithm>
+#include <stack>
 
 #define INT_MAX 2147483647
 
@@ -16,12 +17,16 @@ public:
     unordered_map<string, int> centro_index; // Mapeia nomes de centros urbanos para índices
     vector<string> nomes_centros; // Armazena os nomes dos centros urbanos
     string capital; // Nome da capital
+    vector<int> distancias_eleitas;
 
     // para a DFS e SCC
     vector<bool> visited; // Vetor de visitados
     vector<vector<int>> scc_componentes; // Componentes fortemente conexas
     vector<vector<int>> scc_adj; // Lista de adjacência das componentes fortemente conexas
+    vector<int> batalhao_eleito_id; // Vetor de batalhões eleitos
 
+    // vetor de rotas
+    vector<vector<int>> rotas_para_imprimir;
 
     Grafo() : centro_count(0) {}
 
@@ -86,6 +91,7 @@ public:
                 max_alcançaveis = cidades_alcançaveis;
                 menor_distancia_maxima = distancia_maxima;
                 melhor_centro = i;
+                distancias_eleitas = distancias;
             }
         }
 
@@ -137,7 +143,7 @@ public:
         }
 
         // Construir o grafo das componentes
-        scc_adj.resize(scc_componentes.size());
+        scc_adj.resize(centro_count);
         for (int i = 0; i < centro_count; i++) {
             for (auto vertice: adj[i]) {
                 if (raizes[i] != raizes[vertice])
@@ -145,18 +151,116 @@ public:
             }
         }
 
-        // printar o grafo scc
+
+        /*// printar o grafo scc
         for (int i = 0; i < scc_componentes.size(); i++) {
             cout << "Componente " << i << ": ";
             for (auto vertice : scc_componentes[i])
                 cout << nomes_centros[vertice] << " ";
             cout << endl;
-        }
+        }*/
 
+        // printar o numero de batalhoes secundarios
+        cout << scc_componentes.size()-1 << endl;
+
+        batalhao_eleito_id.resize(scc_componentes.size());
+        // para cada componente fortemente conexa eleger um vertice original para se tornar um batalhao com base na proximidade da capital olhar o vetor de distancias eleitas se a componente possuir uma capital apenas continue
+         for (int i = 0; i < scc_componentes.size(); i++) {
+            // verifica a presença da capital na componente
+            static bool capital_scc_encontrada = false;
+            if (!capital_scc_encontrada) {
+                for (auto vertice : scc_componentes[i]) {
+                    if (nomes_centros[vertice] == capital) {
+                        capital_scc_encontrada = true;
+                        batalhao_eleito_id[i] = vertice;
+                        goto just_continue_outer;
+                    }
+                }
+            }
+            if (scc_componentes[i].size() == 1) {
+                cout <<  nomes_centros[scc_componentes[i][0]] << endl;
+                batalhao_eleito_id[i] = scc_componentes[i][0];
+            } else {
+                int melhor_vertice = scc_componentes[i][0];
+                for (int j = 1; j < scc_componentes[i].size(); j++) {
+                    if (distancias_eleitas[scc_componentes[i][j]] < distancias_eleitas[melhor_vertice]) {
+                        melhor_vertice = scc_componentes[i][j];
+                    }
+                }
+                cout <<  nomes_centros[melhor_vertice] << endl;
+                batalhao_eleito_id[i] = melhor_vertice;
+            }
+            just_continue_outer: ;
+        }
     }
 
     void verificar_patrulhamento() {
-        // Implementar lógica para verificar rotas de patrulhamento
+        for (int i = 0; i < scc_componentes.size(); ++i) {
+            if (scc_componentes[i].size() > 1) {
+                vector<int> grau_entrada(centro_count, 0);
+                vector<int> grau_saida(centro_count, 0);
+
+                for (int u : scc_componentes[i]) {
+                    for (int v : adj[u]) {
+                        if (find(scc_componentes[i].begin(), scc_componentes[i].end(), v) != scc_componentes[i].end()) {
+                            grau_saida[u]++;
+                            grau_entrada[v]++;
+                        }
+                    }
+                }
+
+                bool euleriano = true;
+                for (int u : scc_componentes[i]) {
+                    if (grau_entrada[u] != grau_saida[u]) {
+                        euleriano = false;
+                        break;
+                    }
+                }
+
+                if (euleriano) {
+                   // cout << "Batalhao " << i << " permite patrulhamento." << endl;
+                    vector<int> rota;
+
+                    //encontrar_ciclo_euleriano(scc_componentes[i][0], rota);
+                    encontrar_ciclo_euleriano(batalhao_eleito_id[i], rota);
+                    rota.pop_back();
+                    rotas_para_imprimir.push_back(rota);
+                    // cout << "Rota de patrulhamento: ";
+                    //cout << endl;
+                } else {
+                   // cout << "Batalhao " << i << " nao permite patrulhamento." << endl;
+                }
+            }
+        }
+        // printar as rotas
+        cout << rotas_para_imprimir.size() << endl;
+
+        for ( vector<int> rota :rotas_para_imprimir) {
+
+            for (int v : rota) {
+                cout << nomes_centros[v] << " ";
+            }
+            cout << endl;
+        }
+    }
+
+
+    void encontrar_ciclo_euleriano(int u, vector<int>& rota) {
+        stack<int> pilha;
+        pilha.push(u);
+
+        while (!pilha.empty()) {
+            int v = pilha.top();
+            if (!adj[v].empty()) {
+                int w = adj[v].back();
+                adj[v].pop_back();
+                pilha.push(w);
+            } else {
+                rota.push_back(v);
+                pilha.pop();
+            }
+        }
+        reverse(rota.begin(), rota.end());
     }
 };
 
@@ -176,9 +280,11 @@ int main() {
 
     // Chamar a função para encontrar e imprimir a capital
     grafo.encontrar_capital();
-    cout << "A capital é: " << grafo.capital << endl;
+    // A capital é
+    cout << grafo.capital << endl;
 
     // Chame as outras funções aqui
     grafo.contar_batalhoes_secundarios();
+    grafo.verificar_patrulhamento();
     return 0;
 }
