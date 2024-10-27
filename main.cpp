@@ -114,9 +114,9 @@ public:
         scc_componentes.clear();
 
         // kosaraju alg
-        for ( int i = 0; i < centro_count; i++)
-            if (!visited[i])
-                dfs_batalhao(i, ordenador, this->adj);
+        for ( int i = 0; i < centro_count; i++) {
+            if (!visited[i]) { dfs_batalhao(i, ordenador, this->adj); }
+        }
 
         // Transpor o grafo
         vector<vector<int>> transposto(centro_count);
@@ -200,9 +200,12 @@ public:
                 vector<int> grau_entrada(centro_count, 0);
                 vector<int> grau_saida(centro_count, 0);
 
+                // Criar subgrafo para a SCC atual
+                vector<vector<int>> subgrafo(centro_count);
                 for (int u : scc_componentes[i]) {
                     for (int v : adj[u]) {
                         if (find(scc_componentes[i].begin(), scc_componentes[i].end(), v) != scc_componentes[i].end()) {
+                            subgrafo[u].push_back(v);
                             grau_saida[u]++;
                             grau_entrada[v]++;
                         }
@@ -218,25 +221,18 @@ public:
                 }
 
                 if (euleriano) {
-                   // cout << "Batalhao " << i << " permite patrulhamento." << endl;
                     vector<int> rota;
-
-                    //encontrar_ciclo_euleriano(scc_componentes[i][0], rota);
-                    encontrar_ciclo_euleriano(batalhao_eleito_id[i], rota);
-                    rota.pop_back();
-                    rotas_para_imprimir.push_back(rota);
-                    // cout << "Rota de patrulhamento: ";
-                    //cout << endl;
-                } else {
-                   // cout << "Batalhao " << i << " nao permite patrulhamento." << endl;
+                    encontrar_ciclo_euleriano(batalhao_eleito_id[i], rota, subgrafo);
+                    if (rota.size() > 1) {
+                        rota.pop_back();
+                        rotas_para_imprimir.push_back(rota);
+                    }
                 }
             }
         }
-        // printar as rotas
+
         cout << rotas_para_imprimir.size() << endl;
-
-        for ( vector<int> rota :rotas_para_imprimir) {
-
+        for (vector<int> rota : rotas_para_imprimir) {
             for (int v : rota) {
                 cout << nomes_centros[v] << " ";
             }
@@ -245,15 +241,15 @@ public:
     }
 
 
-    void encontrar_ciclo_euleriano(int u, vector<int>& rota) {
+    void encontrar_ciclo_euleriano(int u, vector<int>& rota, vector<vector<int>>& subgrafo) {
         stack<int> pilha;
         pilha.push(u);
 
         while (!pilha.empty()) {
             int v = pilha.top();
-            if (!adj[v].empty()) {
-                int w = adj[v].back();
-                adj[v].pop_back();
+            if (!subgrafo[v].empty()) {
+                int w = subgrafo[v].back();
+                subgrafo[v].pop_back();
                 pilha.push(w);
             } else {
                 rota.push_back(v);
