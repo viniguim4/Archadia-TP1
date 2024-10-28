@@ -8,22 +8,22 @@
 
 #define INT_MAX 2147483647
 
-using namespace std; // Adicionando o namespace std
+using namespace std;
 
 class Grafo {
 public:
-    int centro_count; // Contador de centros urbanos
-    vector<vector<int>> adj; // Lista de adjacência
+    int centro_count;
+    vector<vector<int>> adj; // Lista de adjacência estruturada para manter informaçao do grafo
     unordered_map<string, int> centro_index; // Mapeia nomes de centros urbanos para índices
-    vector<string> nomes_centros; // Armazena os nomes dos centros urbanos
-    string capital; // Nome da capital
-    vector<int> distancias_eleitas;
+    vector<string> nomes_centros; // Armazena os nomes dos centros urbanos para garantir a ordenaçao do mapeamento
+    string capital;
+    vector<int> distancias_eleitas; // Vetor de distâncias da capital para cada centro urbano
 
     // para a DFS e SCC
-    vector<bool> visited; // Vetor de visitados
-    vector<vector<int>> scc_componentes; // Componentes fortemente conexas
-    vector<vector<int>> scc_adj; // Lista de adjacência das componentes fortemente conexas
-    vector<int> batalhao_eleito_id; // Vetor de batalhões eleitos
+    vector<bool> visited; // Vetor de visitados para a DFS
+    vector<vector<int>> scc_componentes;
+    vector<vector<int>> scc_adj;
+    vector<int> batalhao_eleito_id;
 
     // vetor de rotas
     vector<vector<int>> rotas_para_imprimir;
@@ -31,23 +31,25 @@ public:
     Grafo() : centro_count(0) {}
 
     void adicionar_estrada(const string& origem, const string& destino) {
+
         // Adiciona ou mapeia a cidade de origem
         if (centro_index.find(origem) == centro_index.end()) {
             centro_index[origem] = centro_count++;
-            nomes_centros.push_back(origem); // Armazena o nome do centro
-            adj.resize(centro_count); // Redimensiona a lista de adjacência
+            nomes_centros.push_back(origem);
+            adj.resize(centro_count);
         }
+
         // Adiciona ou mapeia a cidade de destino
         if (centro_index.find(destino) == centro_index.end()) {
             centro_index[destino] = centro_count++;
-            nomes_centros.push_back(destino); // Armazena o nome do centro
-            adj.resize(centro_count); // Redimensiona a lista de adjacência
+            nomes_centros.push_back(destino);
+            adj.resize(centro_count);
         }
 
         // Adiciona a estrada (grafo direcionado)
         int u = centro_index[origem];
         int v = centro_index[destino];
-        adj[u].push_back(v); // Apenas adiciona a direção de origem para destino
+        adj[u].push_back(v);
     }
 
     void encontrar_capital() {
@@ -55,6 +57,7 @@ public:
         int max_alcançaveis = -1;
         int menor_distancia_maxima = INT_MAX;
 
+        // Para cada centro urbano, calcular a quantidade de cidades alcançáveis e a distância máxima
         for (int i = 0; i < centro_count; ++i) {
             vector<int> distancias(centro_count, -1);
             queue<int> fila;
@@ -85,7 +88,7 @@ public:
                 }
             }
 
-            // Verificar se este centro é melhor
+            // Verificar se este centro é melhor do que o eleito anteriormente
             if (cidades_alcançaveis > max_alcançaveis ||
                 (cidades_alcançaveis == max_alcançaveis && distancia_maxima < menor_distancia_maxima)) {
                 max_alcançaveis = cidades_alcançaveis;
@@ -96,7 +99,8 @@ public:
         }
 
         // nome do centro que será a capital
-        capital = nomes_centros[melhor_centro]; // Nome da capital
+        capital = nomes_centros[melhor_centro];
+        cout << capital << endl;
     }
 
     void dfs_batalhao(int vertice, vector<int> &output, vector<vector<int>> &adj_ref) {
@@ -114,6 +118,7 @@ public:
         scc_componentes.clear();
 
         // kosaraju alg
+        // Primeira DFS
         for ( int i = 0; i < centro_count; i++) {
             if (!visited[i]) { dfs_batalhao(i, ordenador, this->adj); }
         }
@@ -128,8 +133,8 @@ public:
 
         visited.assign(centro_count, false);
         reverse(ordenador.begin(), ordenador.end());
-
         vector<int> raizes(centro_count, -1);
+
         // Segunda DFS
         for (auto vertice : ordenador) {
             if (!visited[vertice]) {
@@ -151,21 +156,13 @@ public:
             }
         }
 
-
-        /*// printar o grafo scc
-        for (int i = 0; i < scc_componentes.size(); i++) {
-            cout << "Componente " << i << ": ";
-            for (auto vertice : scc_componentes[i])
-                cout << nomes_centros[vertice] << " ";
-            cout << endl;
-        }*/
-
         // printar o numero de batalhoes secundarios
         cout << scc_componentes.size()-1 << endl;
 
         batalhao_eleito_id.resize(scc_componentes.size());
         // para cada componente fortemente conexa eleger um vertice original para se tornar um batalhao com base na proximidade da capital olhar o vetor de distancias eleitas se a componente possuir uma capital apenas continue
          for (int i = 0; i < scc_componentes.size(); i++) {
+
             // verifica a presença da capital na componente
             static bool capital_scc_encontrada = false;
             if (!capital_scc_encontrada) {
@@ -177,6 +174,8 @@ public:
                     }
                 }
             }
+
+            // se a componente possuir apenas um vertice eleger ele como batalhao senao eleger o vertice mais proximo da capital
             if (scc_componentes[i].size() == 1) {
                 cout <<  nomes_centros[scc_componentes[i][0]] << endl;
                 batalhao_eleito_id[i] = scc_componentes[i][0];
@@ -190,12 +189,17 @@ public:
                 cout <<  nomes_centros[melhor_vertice] << endl;
                 batalhao_eleito_id[i] = melhor_vertice;
             }
+
+            // label para dar um continue outer se achou a capital na componente
             just_continue_outer: ;
         }
     }
 
     void verificar_patrulhamento() {
+
+        // para cada componente fortemente conexa verificar se o subgrafo é euleriano e se for encontrar o ciclo euleriano
         for (int i = 0; i < scc_componentes.size(); ++i) {
+            // se a componente possuir mais de um vertice medir esforço para encontrar ciclo euleriano
             if (scc_componentes[i].size() > 1) {
                 vector<int> grau_entrada(centro_count, 0);
                 vector<int> grau_saida(centro_count, 0);
@@ -212,6 +216,7 @@ public:
                     }
                 }
 
+                // Verificar se o subgrafo é euleriano
                 bool euleriano = true;
                 for (int u : scc_componentes[i]) {
                     if (grau_entrada[u] != grau_saida[u]) {
@@ -220,6 +225,7 @@ public:
                     }
                 }
 
+                // Encontrar ciclo euleriano
                 if (euleriano) {
                     vector<int> rota;
                     encontrar_ciclo_euleriano(batalhao_eleito_id[i], rota, subgrafo);
@@ -230,6 +236,7 @@ public:
                 }
             }
         }
+
 
         cout << rotas_para_imprimir.size() << endl;
         for (vector<int> rota : rotas_para_imprimir) {
@@ -245,6 +252,7 @@ public:
         stack<int> pilha;
         pilha.push(u);
 
+        // DFS para encontrar o ciclo euleriano
         while (!pilha.empty()) {
             int v = pilha.top();
             if (!subgrafo[v].empty()) {
@@ -262,25 +270,22 @@ public:
 
 
 int main() {
+    // Ler o número de centros urbanos e numero estradas
     int centros, num_estradas;
     cin >> centros >> num_estradas;
 
     Grafo grafo;
     string origem, destino;
 
-    // Lendo as estradas
+    // Lendo as arestas
     for (int i = 0; i < num_estradas; ++i) {
         cin >> origem >> destino;
         grafo.adicionar_estrada(origem, destino);
     }
 
-    // Chamar a função para encontrar e imprimir a capital
     grafo.encontrar_capital();
-    // A capital é
-    cout << grafo.capital << endl;
-
-    // Chame as outras funções aqui
     grafo.contar_batalhoes_secundarios();
     grafo.verificar_patrulhamento();
+
     return 0;
 }
