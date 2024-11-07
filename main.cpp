@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <stack>
+#include <map>
 
 #define INT_MAX 2147483647
 
@@ -22,7 +23,7 @@ public:
     // para a DFS e SCC
     vector<bool> visited; // Vetor de visitados para a DFS
     vector<vector<int>> scc_componentes;
-    vector<vector<int>> scc_adj;
+    //vector<vector<int>> scc_adj;
     vector<int> batalhao_eleito_id;
 
     // vetor de rotas
@@ -114,7 +115,7 @@ public:
     void contar_batalhoes_secundarios() {
         vector<int> ordenador;
         visited.assign(centro_count, false);
-        scc_adj.clear();
+        //scc_adj.clear();
         scc_componentes.clear();
 
         // kosaraju alg
@@ -148,13 +149,13 @@ public:
         }
 
         // Construir o grafo das componentes
-        scc_adj.resize(centro_count);
+        /*scc_adj.resize(centro_count);
         for (int i = 0; i < centro_count; i++) {
             for (auto vertice: adj[i]) {
                 if (raizes[i] != raizes[vertice])
                     scc_adj[raizes[i]].push_back(raizes[vertice]);
             }
-        }
+        }*/
 
         // printar o numero de batalhoes secundarios
         cout << scc_componentes.size()-1 << endl;
@@ -196,50 +197,106 @@ public:
     }
 
     void verificar_patrulhamento() {
-
-        // para cada componente fortemente conexa verificar se o subgrafo é euleriano e se for encontrar o ciclo euleriano
         for (int i = 0; i < scc_componentes.size(); ++i) {
-            // se a componente possuir mais de um vertice medir esforço para encontrar ciclo euleriano
-            if (scc_componentes[i].size() > 1) {
-                vector<int> grau_entrada(centro_count, 0);
-                vector<int> grau_saida(centro_count, 0);
+            if (scc_componentes[i].size() == 1) {
+                continue; // Não há necessidade de patrulhamento para componentes com um único vértice
+            }
 
-                // Criar subgrafo para a SCC atual
-                vector<vector<int>> subgrafo(centro_count);
-                for (int u : scc_componentes[i]) {
-                    for (int v : adj[u]) {
-                        if (find(scc_componentes[i].begin(), scc_componentes[i].end(), v) != scc_componentes[i].end()) {
-                            subgrafo[u].push_back(v);
-                            grau_saida[u]++;
-                            grau_entrada[v]++;
-                        }
-                    }
-                }
+            // Passo 1: Construir o subgrafo da componente e calcular graus de entrada e saída
+            vector<vector<int>> subgraph_scc(centro_count);
+            vector<int> grau_entrada(centro_count, 0);
+            vector<int> grau_saida(centro_count, 0);
 
-                // Verificar se o subgrafo é euleriano
-                bool euleriano = true;
-                for (int u : scc_componentes[i]) {
-                    if (grau_entrada[u] != grau_saida[u]) {
-                        euleriano = false;
-                        break;
-                    }
-                }
-
-                // Encontrar ciclo euleriano
-                if (euleriano) {
-                    vector<int> rota;
-                    encontrar_ciclo_euleriano(batalhao_eleito_id[i], rota, subgrafo);
-                    if (rota.size() > 1) {
-                        rota.pop_back();
-                        rotas_para_imprimir.push_back(rota);
+            for (int vertice : scc_componentes[i]) {
+                for (int vizinho : adj[vertice]) {
+                    // so adciona se estiver na lista de scc
+                    if (find(scc_componentes[i].begin(), scc_componentes[i].end(), vizinho) != scc_componentes[i].end()) {
+                        subgraph_scc[vertice].push_back(vizinho);
+                        grau_entrada[vizinho]++;
+                        grau_saida[vertice]++;
                     }
                 }
             }
+
+            // Passo 2: Verificar se o subgrafo é euleriano
+            bool euleriano = true;
+            for (int vertice : scc_componentes[i]) {
+                if (grau_entrada[vertice] != grau_saida[vertice]) {
+                    euleriano = false;
+                    break;
+                }
+            }
+
+            // Passo 3: Se o grafo direcionado e sem pesos nao for balanceado, balancear e tornar euleriano
+            if (!euleriano) {
+                // Identificar vértices desbalanceados
+                vector<int> deficientes, excedentes;
+                for (int vertice : scc_componentes[i]) {
+                    if (grau_entrada[vertice] < grau_saida[vertice]) {
+                        excedentes.push_back(vertice);
+                    } else if (grau_entrada[vertice] > grau_saida[vertice]) {
+                        deficientes.push_back(vertice);
+                    }
+                }
+
+                // Emparelhamento de vértices deficientes e excedentes
+                while (!deficientes.empty() && !excedentes.empty()) {
+                    int d = deficientes.back(); // Vértice deficiente
+                    int e = excedentes.back(); // Vértice excedente
+
+                    // Verificar se d e e são vizinhos
+                    if (find(subgraph_scc[d].begin(), subgraph_scc[d].end(), e) != subgraph_scc[d].end()) {
+                        // Se são vizinhos, adicionar a aresta diretamente
+                        subgraph_scc[d].push_back(e);
+                        grau_entrada[e]++;
+                        grau_saida[d]++;
+                    } else {
+                        // Se não são vizinhos, encontrar um caminho de d a e
+                        vector<int> caminho; // Para armazenar o caminho encontrado
+                        if (encontrar_caminho(d, e, subgraph_scc, caminho)) {
+                            // Adicionar arestas do caminho ao subgrafo
+                            for (size_t i = 0; i < caminho.size() - 1; ++i) {
+                                subgraph_scc[caminho[i]].push_back(caminho[i + 1]);
+                                grau_entrada[caminho[i + 1]]++;
+                                grau_saida[caminho[i]]++;
+                            }
+                        }
+                    }
+
+                    // Remover do vetor de deficientes e excedentes
+                    deficientes.pop_back();
+                    excedentes.pop_back();
+                }
+            }
+
+            // Passo 4: Algoritmo de Hierholzer para encontrar o caminho Euleriano
+            stack<int> pilha;
+            vector<int> rota_euleriana;
+            int atual = batalhao_eleito_id[i];
+            pilha.push(atual);
+
+            while (!pilha.empty()) {
+                atual = pilha.top();
+                if (!subgraph_scc[atual].empty()) {
+                    int proximo = subgraph_scc[atual].back();
+                    subgraph_scc[atual].pop_back();
+                    pilha.push(proximo);
+                } else {
+                    rota_euleriana.push_back(atual);
+                    pilha.pop();
+                }
+            }
+
+            // A rota_euleriana agora contém o caminho euleriano em ordem reversa
+            reverse(rota_euleriana.begin(), rota_euleriana.end());
+
+            // Adicionar e imprimir a rota encontrada
+            rotas_para_imprimir.push_back(rota_euleriana);
         }
 
-
+        // Imprimir todas as rotas
         cout << rotas_para_imprimir.size() << endl;
-        for (vector<int> rota : rotas_para_imprimir) {
+        for (const auto& rota : rotas_para_imprimir) {
             for (int v : rota) {
                 cout << nomes_centros[v] << " ";
             }
@@ -247,26 +304,43 @@ public:
         }
     }
 
+    // Função para encontrar um caminho entre dois vértices usando BFS
+    bool encontrar_caminho(int origem, int destino, const vector<vector<int>>& grafo, vector<int>& caminho) {
+        vector<bool> visitado(grafo.size(), false);
+        queue<int> fila;
+        unordered_map<int, int> pai; // Para rastrear o caminho
 
-    void encontrar_ciclo_euleriano(int u, vector<int>& rota, vector<vector<int>>& subgrafo) {
-        stack<int> pilha;
-        pilha.push(u);
+        fila.push(origem);
+        visitado[origem] = true;
 
-        // DFS para encontrar o ciclo euleriano
-        while (!pilha.empty()) {
-            int v = pilha.top();
-            if (!subgrafo[v].empty()) {
-                int w = subgrafo[v].back();
-                subgrafo[v].pop_back();
-                pilha.push(w);
-            } else {
-                rota.push_back(v);
-                pilha.pop();
+        while (!fila.empty()) {
+            int atual = fila.front();
+            fila.pop();
+
+            if (atual == destino) {
+                // Reconstruir o caminho
+                for (int v = destino; v != origem; v = pai[v]) {
+                    caminho.push_back(v);
+                }
+                caminho.push_back(origem);
+                reverse(caminho.begin(), caminho.end());
+                return true;
+            }
+
+            for (int vizinho : grafo[atual]) {
+                if (!visitado[vizinho]) {
+                    visitado[vizinho] = true;
+                    pai[vizinho] = atual;
+                    fila.push(vizinho);
+                }
             }
         }
-        reverse(rota.begin(), rota.end());
+
+        return false; // Caminho não encontrado
     }
+
 };
+
 
 
 int main() {
